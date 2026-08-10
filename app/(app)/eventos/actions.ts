@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrganizationId } from "@/lib/supabase/organization";
 
 export type CreateEventState = {
   error?: string;
@@ -21,15 +22,9 @@ export async function createEvent(
     return { error: "Sesión no válida." };
   }
 
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .limit(1)
-    .single();
+  const organizationId = await getActiveOrganizationId(supabase);
 
-  if (!membership) {
+  if (!organizationId) {
     return { error: "Tu usuario no pertenece a ninguna organización todavía." };
   }
 
@@ -50,7 +45,7 @@ export async function createEvent(
     const { data: existingClient } = await supabase
       .from("clients")
       .select("id")
-      .eq("organization_id", membership.organization_id)
+      .eq("organization_id", organizationId)
       .eq("name", clientName)
       .limit(1)
       .maybeSingle();
@@ -60,7 +55,7 @@ export async function createEvent(
     } else {
       const { data: newClient, error: clientError } = await supabase
         .from("clients")
-        .insert({ organization_id: membership.organization_id, name: clientName })
+        .insert({ organization_id: organizationId, name: clientName })
         .select("id")
         .single();
 
@@ -72,7 +67,7 @@ export async function createEvent(
   }
 
   const { error: eventError } = await supabase.from("events").insert({
-    organization_id: membership.organization_id,
+    organization_id: organizationId,
     client_id: clientId,
     event_type: eventType,
     name,

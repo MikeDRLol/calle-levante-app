@@ -1,52 +1,16 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { NewEventForm } from "@/app/(app)/eventos/new-event-form";
+import { EventStatusBadge } from "@/components/events/status-badge";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveOrganizationId } from "@/lib/supabase/organization";
+import { eventDateFormatter } from "@/lib/utils/format";
 import { Music2 } from "lucide-react";
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Borrador",
-  confirmed: "Confirmado",
-  in_progress: "En curso",
-  completed: "Completado",
-  cancelled: "Cancelado",
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  confirmed:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
-  in_progress:
-    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-  completed: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
-  cancelled: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-};
-
-const dateFormatter = new Intl.DateTimeFormat("es-ES", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 export default async function EventosPage() {
   const supabase = await createClient();
+  const organizationId = await getActiveOrganizationId(supabase);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: membership } = user
-    ? await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: events } = membership
+  const { data: events } = organizationId
     ? await supabase
         .from("events")
         .select("id, name, event_type, status, start_at, end_at, venue_name, clients(name)")
@@ -57,7 +21,7 @@ export default async function EventosPage() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="Eventos" description="Gestión de eventos musicales" />
 
-      {!membership ? (
+      {!organizationId ? (
         <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 dark:border-zinc-800 dark:bg-zinc-900/30">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Tu usuario todavía no pertenece a ninguna organización — no se pueden mostrar eventos.
@@ -110,14 +74,10 @@ export default async function EventosPage() {
                         {event.venue_name ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
-                        {dateFormatter.format(new Date(event.start_at))}
+                        {eventDateFormatter.format(new Date(event.start_at))}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLES[event.status] ?? STATUS_STYLES.draft}`}
-                        >
-                          {STATUS_LABELS[event.status] ?? event.status}
-                        </span>
+                        <EventStatusBadge status={event.status} />
                       </td>
                     </tr>
                   ))}
