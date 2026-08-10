@@ -15,8 +15,11 @@ const EVENT_TYPES = [
   { value: "otro", label: "Otro" },
 ];
 
-export function NewEventForm() {
+type Client = { id: string; name: string };
+
+export function NewEventForm({ clients }: { clients: Client[] }) {
   const [open, setOpen] = useState(false);
+  const [clientChoice, setClientChoice] = useState("");
   const [state, formAction, pending] = useActionState(
     createEvent,
     initialState,
@@ -27,6 +30,7 @@ export function NewEventForm() {
   useEffect(() => {
     if (wasPending.current && !pending && !state?.error) {
       formRef.current?.reset();
+      setClientChoice("");
       setOpen(false);
     }
     wasPending.current = pending;
@@ -85,14 +89,35 @@ export function NewEventForm() {
           </select>
         </Field>
 
-        <Field label="Cliente" htmlFor="client_name">
-          <input
-            id="client_name"
-            name="client_name"
-            placeholder="Familia García (opcional)"
+        <Field label="Cliente" htmlFor="client_id">
+          <select
+            id="client_id"
+            name="client_id"
+            value={clientChoice}
+            onChange={(e) => setClientChoice(e.target.value)}
             className={inputClass}
-          />
+          >
+            <option value="">Sin cliente</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            <option value="__new__">+ Cliente nuevo…</option>
+          </select>
         </Field>
+
+        {clientChoice === "__new__" ? (
+          <Field label="Nombre del cliente nuevo" htmlFor="new_client_name">
+            <input
+              id="new_client_name"
+              name="new_client_name"
+              required
+              placeholder="Familia García"
+              className={inputClass}
+            />
+          </Field>
+        ) : null}
 
         <Field label="Lugar" htmlFor="venue_name">
           <input
@@ -119,6 +144,18 @@ export function NewEventForm() {
             name="end_at"
             type="datetime-local"
             required
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="Importe acordado (€)" htmlFor="total_amount">
+          <input
+            id="total_amount"
+            name="total_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Opcional"
             className={inputClass}
           />
         </Field>

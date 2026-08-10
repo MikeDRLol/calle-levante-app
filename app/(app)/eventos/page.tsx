@@ -11,12 +11,15 @@ export default async function EventosPage() {
   const supabase = await createClient();
   const organizationId = await getActiveOrganizationId(supabase);
 
-  const { data: events } = organizationId
-    ? await supabase
-        .from("events")
-        .select("id, name, event_type, status, start_at, end_at, venue_name, clients(name)")
-        .order("start_at", { ascending: true })
-    : { data: null };
+  const [{ data: events }, { data: clients }] = organizationId
+    ? await Promise.all([
+        supabase
+          .from("events")
+          .select("id, name, event_type, status, start_at, end_at, venue_name, clients(name)")
+          .order("start_at", { ascending: true }),
+        supabase.from("clients").select("id, name").order("name", { ascending: true }),
+      ])
+    : [{ data: null }, { data: null }];
 
   return (
     <div className="flex flex-1 flex-col">
@@ -36,7 +39,7 @@ export default async function EventosPage() {
             </p>
           </div>
 
-          <NewEventForm />
+          <NewEventForm clients={clients ?? []} />
 
           {!events || events.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 dark:border-zinc-800 dark:bg-zinc-900/30">

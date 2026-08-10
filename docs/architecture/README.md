@@ -22,6 +22,7 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | ADR-008 | Facturación: integración con proveedor Verifactu homologado, no motor propio | Pendiente | ADR-005 |
 | [ADR-009](./ADR-009-events-module.md) | Módulo Events: entidad evento, clientes mínimos, checklist dinámico, cierre de FK diferidas | Aceptado | ADR-001, ADR-002, ADR-005 |
 | [ADR-010](./ADR-010-kit-bundle-resolution.md) | Resolución Kit → Bundle: `fn_apply_kit_to_event` | Aceptado | ADR-001, ADR-002, ADR-003, ADR-009 |
+| [ADR-011](./ADR-011-event-payments.md) | Cobros de evento: `total_amount` + `event_payments` (pagos parciales) | Aceptado | ADR-009 |
 
 ## Pendientes de validación (no dar el Core por cerrado sin esto)
 

@@ -4,6 +4,10 @@ import { ArrowLeft, MapPin } from "lucide-react";
 import { EventStatusBadge } from "@/components/events/status-badge";
 import { ResourceStatusBadge } from "@/components/resources/status-badge";
 import { EventChecklist } from "@/app/(app)/eventos/[id]/checklist";
+import { EditEventForm } from "@/app/(app)/eventos/[id]/edit-event-form";
+import { EventPayments } from "@/app/(app)/eventos/[id]/payments";
+import { AddResourceForm } from "@/app/(app)/eventos/[id]/add-resource-form";
+import { RemoveBookingButton } from "@/app/(app)/eventos/[id]/remove-booking-button";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrganizationId } from "@/lib/supabase/organization";
 import { eventDateFormatter } from "@/lib/utils/format";
@@ -24,7 +28,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, clients(name, phone, email)",
+      "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, total_amount, clients(name, phone, email)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -33,7 +37,7 @@ export default async function EventDetailPage({
     notFound();
   }
 
-  const [{ data: checklistItems }, { data: bookings }] = await Promise.all([
+  const [{ data: checklistItems }, { data: bookings }, { data: payments }] = await Promise.all([
     supabase
       .from("event_checklist_items")
       .select("id, label, is_checked, source")
@@ -43,6 +47,11 @@ export default async function EventDetailPage({
       .from("resource_bookings")
       .select("id, resources(id, name, resource_type, status)")
       .eq("event_id", id),
+    supabase
+      .from("event_payments")
+      .select("id, amount, method, paid_at, notes")
+      .eq("event_id", id)
+      .order("paid_at", { ascending: false }),
   ]);
 
   const client = event.clients as unknown as {
@@ -50,6 +59,43 @@ export default async function EventDetailPage({
     phone: string | null;
     email: string | null;
   } | null;
+
+  const bookedResourceIds = new Set(
+    (bookings ?? [])
+      .map((b) => (b.resources as unknown as { id: string } | null)?.id)
+      .filter((v): v is string => Boolean(v)),
+  );
+
+  const { data: candidateResources } = await supabase
+    .from("resources")
+    .select("id, name, resource_type")
+    .eq("status", "available")
+    .in("resource_type", ["material", "tool", "equipment", "vehicle"]);
+
+  const unbookedCandidates = (candidateResources ?? []).filter(
+    (r) => !bookedResourceIds.has(r.id),
+  );
+
+  let availableCandidates: { id: string; name: string; resource_type: string }[] = [];
+
+  if (unbookedCandidates.length > 0) {
+    const { data: availability } = await supabase.rpc(
+      "fn_check_resource_availability",
+      {
+        p_resource_ids: unbookedCandidates.map((r) => r.id),
+        p_start_at: event.start_at,
+        p_end_at: event.end_at,
+      },
+    );
+
+    type AvailabilityRow = { resource_id: string; is_available: boolean };
+    const availableIds = new Set(
+      ((availability ?? []) as AvailabilityRow[])
+        .filter((a) => a.is_available)
+        .map((a) => a.resource_id),
+    );
+    availableCandidates = unbookedCandidates.filter((r) => availableIds.has(r.id));
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -76,7 +122,22 @@ export default async function EventDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <EditEventForm
+        event={{
+          id: event.id,
+          name: event.name,
+          event_type: event.event_type,
+          status: event.status,
+          start_at: event.start_at,
+          end_at: event.end_at,
+          venue_name: event.venue_name,
+          venue_address: event.venue_address,
+          total_amount: event.total_amount,
+          notes: event.notes,
+        }}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <InfoCard label="Cliente">
           {client ? (
             <>
@@ -105,40 +166,60 @@ export default async function EventDetailPage({
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin definir</p>
           )}
         </InfoCard>
-
-        <InfoCard label="Material y recursos asignados">
-          {!bookings || bookings.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Nada reservado todavía.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {bookings.map((booking) => {
-                const resource = booking.resources as unknown as {
-                  id: string;
-                  name: string;
-                  status: string;
-                } | null;
-                if (!resource) return null;
-                return (
-                  <li key={booking.id} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                      {resource.name}
-                    </span>
-                    <ResourceStatusBadge status={resource.status} />
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </InfoCard>
       </div>
 
-      <EventChecklist
-        eventId={event.id}
-        organizationId={organizationId}
-        items={checklistItems ?? []}
-      />
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          Material y recursos asignados
+        </p>
+
+        {!bookings || bookings.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Nada reservado todavía.</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {bookings.map((booking) => {
+              const resource = booking.resources as unknown as {
+                id: string;
+                name: string;
+                status: string;
+              } | null;
+              if (!resource) return null;
+              return (
+                <li key={booking.id} className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    {resource.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <ResourceStatusBadge status={resource.status} />
+                    <RemoveBookingButton bookingId={booking.id} eventId={event.id} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <AddResourceForm
+          eventId={event.id}
+          organizationId={organizationId}
+          candidates={availableCandidates}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <EventChecklist
+          eventId={event.id}
+          organizationId={organizationId}
+          items={checklistItems ?? []}
+        />
+
+        <EventPayments
+          eventId={event.id}
+          organizationId={organizationId}
+          totalAmount={event.total_amount}
+          payments={payments ?? []}
+        />
+      </div>
     </div>
   );
 }

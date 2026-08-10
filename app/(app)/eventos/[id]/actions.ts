@@ -57,3 +57,221 @@ export async function addChecklistItem(
   revalidatePath(`/eventos/${eventId}`);
   return null;
 }
+
+export type UpdateEventState = {
+  error?: string;
+} | null;
+
+const EVENT_STATUSES = [
+  "draft",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
+
+export async function updateEvent(
+  eventId: string,
+  _prevState: UpdateEventState,
+  formData: FormData,
+): Promise<UpdateEventState> {
+  const supabase = await createClient();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const eventType = String(formData.get("event_type") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  const startAt = String(formData.get("start_at") ?? "");
+  const endAt = String(formData.get("end_at") ?? "");
+  const venueName = String(formData.get("venue_name") ?? "").trim();
+  const venueAddress = String(formData.get("venue_address") ?? "").trim();
+  const totalAmountRaw = String(formData.get("total_amount") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!name || !eventType || !startAt || !endAt) {
+    return { error: "Nombre, tipo y fechas son obligatorios." };
+  }
+
+  if (!EVENT_STATUSES.includes(status)) {
+    return { error: "Estado no válido." };
+  }
+
+  const totalAmount = totalAmountRaw ? Number(totalAmountRaw) : null;
+  if (totalAmountRaw && (Number.isNaN(totalAmount) || (totalAmount ?? 0) < 0)) {
+    return { error: "El importe no es válido." };
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .update({
+      name,
+      event_type: eventType,
+      status,
+      start_at: startAt,
+      end_at: endAt,
+      venue_name: venueName || null,
+      venue_address: venueAddress || null,
+      total_amount: totalAmount,
+      notes: notes || null,
+    })
+    .eq("id", eventId);
+
+  if (error) {
+    return { error: `No se pudo guardar: ${error.message}` };
+  }
+
+  revalidatePath(`/eventos/${eventId}`);
+  revalidatePath("/eventos");
+  return null;
+}
+
+export type AddPaymentState = {
+  error?: string;
+} | null;
+
+const PAYMENT_METHODS = ["cash", "transfer", "bizum", "card", "other"];
+
+export async function addPayment(
+  eventId: string,
+  organizationId: string,
+  _prevState: AddPaymentState,
+  formData: FormData,
+): Promise<AddPaymentState> {
+  const supabase = await createClient();
+
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  const method = String(formData.get("method") ?? "").trim();
+  const paidAt = String(formData.get("paid_at") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  const amount = Number(amountRaw);
+  if (!amountRaw || Number.isNaN(amount) || amount <= 0) {
+    return { error: "El importe debe ser mayor que 0." };
+  }
+
+  if (!PAYMENT_METHODS.includes(method)) {
+    return { error: "Método de pago no válido." };
+  }
+
+  if (!paidAt) {
+    return { error: "La fecha es obligatoria." };
+  }
+
+  const { error } = await supabase.from("event_payments").insert({
+    organization_id: organizationId,
+    event_id: eventId,
+    amount,
+    method,
+    paid_at: paidAt,
+    notes: notes || null,
+  });
+
+  if (error) {
+    return { error: `No se pudo registrar el pago: ${error.message}` };
+  }
+
+  revalidatePath(`/eventos/${eventId}`);
+  return null;
+}
+
+export type AddResourceState = {
+  error?: string;
+} | null;
+
+export async function addResourceToEvent(
+  eventId: string,
+  organizationId: string,
+  _prevState: AddResourceState,
+  formData: FormData,
+): Promise<AddResourceState> {
+  const resourceId = String(formData.get("resource_id") ?? "").trim();
+
+  if (!resourceId) {
+    return { error: "Selecciona un recurso." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("start_at, end_at")
+    .eq("id", eventId)
+    .single();
+
+  if (!event) {
+    return { error: "Evento no encontrado." };
+  }
+
+  // Re-comprobar disponibilidad aquí, no solo confiar en lo que se filtró al
+  // pintar el selector (ADR-003): entre que se cargó la lista y este submit
+  // puede haberse reservado el recurso para otro evento.
+  const { data: availability } = await supabase.rpc(
+    "fn_check_resource_availability",
+    {
+      p_resource_ids: [resourceId],
+      p_start_at: event.start_at,
+      p_end_at: event.end_at,
+    },
+  );
+
+  if (!availability || !availability[0]?.is_available) {
+    return { error: "Ese recurso ya no está disponible para este evento — recarga la página." };
+  }
+
+  let { data: bundle } = await supabase
+    .from("bundles")
+    .select("id")
+    .eq("event_id", eventId)
+    .is("source_kit_id", null)
+    .maybeSingle();
+
+  if (!bundle) {
+    const { data: newBundle, error: bundleError } = await supabase
+      .from("bundles")
+      .insert({ organization_id: organizationId, event_id: eventId })
+      .select("id")
+      .single();
+
+    if (bundleError || !newBundle) {
+      return { error: "No se pudo preparar la asignación de material." };
+    }
+    bundle = newBundle;
+  }
+
+  const { data: booking, error: bookingError } = await supabase
+    .from("resource_bookings")
+    .insert({
+      organization_id: organizationId,
+      resource_id: resourceId,
+      event_id: eventId,
+      start_at: event.start_at,
+      end_at: event.end_at,
+    })
+    .select("id")
+    .single();
+
+  if (bookingError || !booking) {
+    return {
+      error:
+        "No se pudo reservar el recurso — puede que se acabe de asignar a otro evento. Recarga e inténtalo de nuevo.",
+    };
+  }
+
+  const { error: bundleItemError } = await supabase.from("bundle_items").insert({
+    bundle_id: bundle.id,
+    resource_id: resourceId,
+    booking_id: booking.id,
+  });
+
+  if (bundleItemError) {
+    return { error: `No se pudo completar la asignación: ${bundleItemError.message}` };
+  }
+
+  revalidatePath(`/eventos/${eventId}`);
+  return null;
+}
+
+export async function removeResourceBooking(bookingId: string, eventId: string) {
+  const supabase = await createClient();
+  await supabase.from("resource_bookings").delete().eq("id", bookingId);
+  revalidatePath(`/eventos/${eventId}`);
+}

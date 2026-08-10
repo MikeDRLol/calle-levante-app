@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewMaterialForm } from "@/app/(app)/material/new-material-form";
 import { ResourceStatusBadge } from "@/components/resources/status-badge";
@@ -62,9 +63,14 @@ export default async function MaterialPage() {
                       serial_number: string | null;
                     } | null;
                     return (
-                      <tr key={resource.id} className="bg-white dark:bg-zinc-950">
+                      <tr
+                        key={resource.id}
+                        className="bg-white transition-colors hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                      >
                         <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
-                          {resource.name}
+                          <Link href={`/material/${resource.id}`} className="hover:underline">
+                            {resource.name}
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
                           {details?.category ?? "—"}
