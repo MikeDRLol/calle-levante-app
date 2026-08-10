@@ -278,6 +278,78 @@ export async function removeResourceBooking(bookingId: string, eventId: string) 
   revalidatePath(`/eventos/${eventId}`);
 }
 
+export type AddPersonnelState = {
+  error?: string;
+} | null;
+
+export async function addPersonnelToEvent(
+  eventId: string,
+  organizationId: string,
+  _prevState: AddPersonnelState,
+  formData: FormData,
+): Promise<AddPersonnelState> {
+  const resourceId = String(formData.get("resource_id") ?? "").trim();
+
+  if (!resourceId) {
+    return { error: "Selecciona una persona." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("start_at, end_at")
+    .eq("id", eventId)
+    .single();
+
+  if (!event) {
+    return { error: "Evento no encontrado." };
+  }
+
+  const { data: availability } = await supabase.rpc("fn_check_resource_availability", {
+    p_resource_ids: [resourceId],
+    p_start_at: event.start_at,
+    p_end_at: event.end_at,
+  });
+
+  if (!availability || !availability[0]?.is_available) {
+    return { error: "Esa persona ya no está disponible para este evento — recarga la página." };
+  }
+
+  const { error: bookingError } = await supabase.from("resource_bookings").insert({
+    organization_id: organizationId,
+    resource_id: resourceId,
+    event_id: eventId,
+    start_at: event.start_at,
+    end_at: event.end_at,
+  });
+
+  if (bookingError) {
+    return {
+      error:
+        "No se pudo reservar a esa persona — puede que se acabe de asignar a otro evento. Recarga e inténtalo de nuevo.",
+    };
+  }
+
+  // Entra automáticamente como participante de la liquidación (importe a 0,
+  // editable en la sección de Liquidación) — es lo que pedía el usuario:
+  // que asignar personal a un evento y añadirlo a la liquidación sea el
+  // mismo paso, no dos.
+  const { error: participantError } = await supabase.from("event_settlement_participants").insert({
+    organization_id: organizationId,
+    event_id: eventId,
+    resource_id: resourceId,
+    amount_owed: 0,
+  });
+
+  if (participantError && participantError.code !== "23505") {
+    return { error: `Se reservó, pero no se pudo añadir a la liquidación: ${participantError.message}` };
+  }
+
+  revalidatePath(`/eventos/${eventId}`);
+  return null;
+}
+
 export type ApplyKitState = {
   error?: string;
   warning?: string;

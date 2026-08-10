@@ -7,6 +7,7 @@ import { EventChecklist } from "@/app/(app)/eventos/[id]/checklist";
 import { EditEventForm } from "@/app/(app)/eventos/[id]/edit-event-form";
 import { EventPayments } from "@/app/(app)/eventos/[id]/payments";
 import { AddResourceForm } from "@/app/(app)/eventos/[id]/add-resource-form";
+import { AddPersonnelForm } from "@/app/(app)/eventos/[id]/add-personnel-form";
 import { ApplyKitForm } from "@/app/(app)/eventos/[id]/apply-kit-form";
 import { RemoveBookingButton } from "@/app/(app)/eventos/[id]/remove-booking-button";
 import {
@@ -106,6 +107,41 @@ export default async function EventDetailPage({
     availableCandidates = unbookedCandidates.filter((r) => availableIds.has(r.id));
   }
 
+  const { data: candidatePeople } = await supabase
+    .from("resources")
+    .select("id, name")
+    .eq("status", "available")
+    .eq("resource_type", "person");
+
+  const unbookedPeopleCandidates = (candidatePeople ?? []).filter(
+    (r) => !bookedResourceIds.has(r.id),
+  );
+
+  let availablePeopleCandidates: { id: string; name: string }[] = [];
+
+  if (unbookedPeopleCandidates.length > 0) {
+    const { data: peopleAvailability } = await supabase.rpc("fn_check_resource_availability", {
+      p_resource_ids: unbookedPeopleCandidates.map((r) => r.id),
+      p_start_at: event.start_at,
+      p_end_at: event.end_at,
+    });
+
+    type AvailabilityRow = { resource_id: string; is_available: boolean };
+    const availablePeopleIds = new Set(
+      ((peopleAvailability ?? []) as AvailabilityRow[])
+        .filter((a) => a.is_available)
+        .map((a) => a.resource_id),
+    );
+    availablePeopleCandidates = unbookedPeopleCandidates.filter((r) => availablePeopleIds.has(r.id));
+  }
+
+  const materialBookings = (bookings ?? []).filter(
+    (b) => (b.resources as unknown as { resource_type: string } | null)?.resource_type !== "person",
+  );
+  const personnelBookings = (bookings ?? []).filter(
+    (b) => (b.resources as unknown as { resource_type: string } | null)?.resource_type === "person",
+  );
+
   const [
     { data: people },
     { data: settlementParticipants },
@@ -204,44 +240,79 @@ export default async function EventDetailPage({
         </InfoCard>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Material y recursos asignados
-        </p>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Material y recursos asignados
+          </p>
 
-        {!bookings || bookings.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Nada reservado todavía.</p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {bookings.map((booking) => {
-              const resource = booking.resources as unknown as {
-                id: string;
-                name: string;
-                status: string;
-              } | null;
-              if (!resource) return null;
-              return (
-                <li key={booking.id} className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                    {resource.name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <ResourceStatusBadge status={resource.status} />
+          {materialBookings.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Nada reservado todavía.</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {materialBookings.map((booking) => {
+                const resource = booking.resources as unknown as {
+                  id: string;
+                  name: string;
+                  status: string;
+                } | null;
+                if (!resource) return null;
+                return (
+                  <li key={booking.id} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                      {resource.name}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <ResourceStatusBadge status={resource.status} />
+                      <RemoveBookingButton bookingId={booking.id} eventId={event.id} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <ApplyKitForm eventId={event.id} kits={kits ?? []} />
+
+          <AddResourceForm
+            eventId={event.id}
+            organizationId={organizationId}
+            candidates={availableCandidates}
+          />
+        </div>
+
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Personal asignado
+          </p>
+
+          {personnelBookings.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Nadie asignado todavía.</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {personnelBookings.map((booking) => {
+                const resource = booking.resources as unknown as {
+                  id: string;
+                  name: string;
+                  status: string;
+                } | null;
+                if (!resource) return null;
+                return (
+                  <li key={booking.id} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300">{resource.name}</span>
                     <RemoveBookingButton bookingId={booking.id} eventId={event.id} />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-        <ApplyKitForm eventId={event.id} kits={kits ?? []} />
-
-        <AddResourceForm
-          eventId={event.id}
-          organizationId={organizationId}
-          candidates={availableCandidates}
-        />
+          <AddPersonnelForm
+            eventId={event.id}
+            organizationId={organizationId}
+            candidates={availablePeopleCandidates}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

@@ -41,6 +41,7 @@ export async function createEvent(
   const depositMethod = String(formData.get("deposit_method") ?? "").trim();
   const depositPaidAt = String(formData.get("deposit_paid_at") ?? "").trim();
   const resourceIds = formData.getAll("resource_ids").map(String).filter(Boolean);
+  const personnelIds = formData.getAll("personnel_ids").map(String).filter(Boolean);
   const kitId = String(formData.get("kit_id") ?? "").trim();
 
   if (!name || !eventType || !startAt || !endAt) {
@@ -98,11 +99,13 @@ export async function createEvent(
   }
 
   let unavailableCount = 0;
+  const bookedPersonnelIds: string[] = [];
+  const allResourceIds = [...resourceIds, ...personnelIds];
 
-  if (resourceIds.length > 0) {
+  if (allResourceIds.length > 0) {
     const { data: availability } = await supabase.rpc(
       "fn_check_resource_availability",
-      { p_resource_ids: resourceIds, p_start_at: startAt, p_end_at: endAt },
+      { p_resource_ids: allResourceIds, p_start_at: startAt, p_end_at: endAt },
     );
 
     type AvailabilityRow = { resource_id: string; is_available: boolean };
@@ -110,7 +113,7 @@ export async function createEvent(
       .filter((a) => a.is_available)
       .map((a) => a.resource_id);
 
-    unavailableCount = resourceIds.length - availableIds.length;
+    unavailableCount = allResourceIds.length - availableIds.length;
 
     if (availableIds.length > 0) {
       const { data: bundle } = await supabase
@@ -138,11 +141,25 @@ export async function createEvent(
             resource_id: resourceId,
             booking_id: booking.id,
           });
+          if (personnelIds.includes(resourceId)) {
+            bookedPersonnelIds.push(resourceId);
+          }
         } else {
           unavailableCount += 1;
         }
       }
     }
+  }
+
+  if (bookedPersonnelIds.length > 0) {
+    await supabase.from("event_settlement_participants").insert(
+      bookedPersonnelIds.map((resourceId) => ({
+        organization_id: organizationId,
+        event_id: event.id,
+        resource_id: resourceId,
+        amount_owed: 0,
+      })),
+    );
   }
 
   let kitWarning: string | null = null;

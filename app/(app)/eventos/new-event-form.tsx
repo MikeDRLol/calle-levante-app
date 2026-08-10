@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { createEvent, type CreateEventState } from "@/app/(app)/eventos/actions";
 import { MaterialPicker } from "@/app/(app)/eventos/material-picker";
@@ -26,6 +27,7 @@ const PAYMENT_METHODS = [
 
 type Client = { id: string; name: string };
 type Resource = { id: string; name: string; resource_type: string };
+type Person = { id: string; name: string; resource_type: string };
 type Kit = { id: string; name: string };
 
 const inputClass =
@@ -39,10 +41,12 @@ const currencyFormatter = new Intl.NumberFormat("es-ES", {
 export function NewEventForm({
   clients,
   resources,
+  people,
   kits,
 }: {
   clients: Client[];
   resources: Resource[];
+  people: Person[];
   kits: Kit[];
 }) {
   const [open, setOpen] = useState(false);
@@ -211,6 +215,26 @@ export function NewEventForm({
           )}
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             Se comprobará que sigue libre para estas fechas justo al crear el evento.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Personal
+          </p>
+          {people.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No hay nadie dado de alta en{" "}
+              <Link href="/personal" className="underline">
+                Personal
+              </Link>{" "}
+              todavía.
+            </p>
+          ) : (
+            <MaterialPicker key={pickerKey} resources={people} name="personnel_ids" />
+          )}
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Quien añadas aquí entra automáticamente como participante en la liquidación del evento.
           </p>
         </div>
 

@@ -21,9 +21,11 @@ Se separa el módulo en dos piezas con grados de certeza muy distintos:
 
 Dado un conjunto de saldos por persona en un evento (positivo = se le debe dinero, negativo = debe dinero), calcular el número mínimo de transferencias que salda todas las deudas es un problema bien definido, independiente de cómo se haya calculado cada saldo. Esto se implementa como función SQL (`fn_calculate_event_settlement`), reutilizable sea cual sea la fórmula de reparto que se use en el futuro.
 
-### 2. Lo que se deja explícitamente como entrada manual en v1: cuánto se le debe a cada persona
+### 2. Lo que se deja como entrada manual — confirmado, no una limitación temporal
 
-`event_settlement_participants.amount_owed` es un importe que se introduce a mano por evento y participante, no calculado automáticamente por una fórmula de reparto. Es una limitación conocida y documentada, no un descuido: en cuanto se conozca la fórmula real (porcentaje por rol, importe fijo por tipo de evento, lo que sea), se añade como una función que rellena `amount_owed` automáticamente — sin tocar el algoritmo de mínimas transferencias, que no depende de eso.
+`event_settlement_participants.amount_owed` es un importe que se introduce a mano por evento y participante. Al diseñar este ADR se dejó así porque no se conocía la fórmula real. **Confirmado directamente con el negocio el 2026-08-10: no hay fórmula fija que automatizar.** Ni el importe de Montaje ni el Incentivo comercial son un porcentaje ni una cantidad constante — varían "dependiendo del evento", a criterio del negocio caso por caso. La Gasolina y demás gastos adelantados sí tienen un tratamiento sistemático (`event_expenses`, ya implementado, ver más abajo).
+
+Esto convierte lo que iba a ser una limitación temporal de v1 en la decisión de diseño correcta y definitiva: `amount_owed` manual no es un parche a sustituir cuando "se conozca la fórmula" — es el modelo correcto porque no existe una fórmula que codificar. Automatizarlo igualmente (por ejemplo, fijando un porcentaje "por defecto" editable) añadiría una capa de indirección que nadie pidió y que no ahorra ningún trabajo real: el negocio ya tiene que mirar cada evento para decidir el importe, así que rellenarlo directamente (que es lo que ya permite la sección de Liquidación en la ficha del evento) es el camino más corto, no uno provisional.
 
 ### Esquema
 
@@ -83,7 +85,7 @@ El problema de minimizar transferencias de forma óptima es NP-difícil en el ca
 ## Consecuencias
 
 - **`Bizums` (ya en la navegación como placeholder) es la vista de `settlement_transfers`**: cada fila pendiente es, literalmente, el Bizum que hay que mandar. Marcar un Bizum como enviado es un `update status = 'paid'`.
-- Queda una deuda explícita y documentada: la fórmula real de reparto (`amount_owed` automático) no está implementada. No se resuelve en esta ADR porque no se conoce la regla real — se resuelve cuando el negocio la proporcione, sin que eso bloquee el resto del módulo.
+- **Cerrado, no pendiente**: no hay fórmula de reparto que automatizar (confirmado con el negocio, ver "Decisión" punto 2) — `amount_owed` manual es el diseño final, no un hueco a rellenar más adelante.
 - RLS sigue el mismo patrón de aislamiento por `organization_id` que todo el esquema.
 
 ## Registro de validación

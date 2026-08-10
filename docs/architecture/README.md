@@ -38,7 +38,7 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | Core | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10). Incluye `fn_check_resource_availability` (ADR-003), añadida el 2026-08-10 tras detectar que faltaba en el esquema aplicado. |
 | Events | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) — ver ADR-009 |
 | Kits/Bundles | Tablas + flujo de resolución completo (`fn_apply_kit_to_event`, ADR-010), validado en ejecución real (2026-08-10) |
-| Settlements | Esquema + algoritmo de mínimas transferencias (ADR-007), validado en ejecución real (2026-08-10). **Sin UI todavía.** La fórmula real de reparto (cuánto le corresponde a cada persona) sigue siendo entrada manual — deuda conocida, ver ADR-007. |
+| Settlements | Esquema + algoritmo de mínimas transferencias (ADR-007) + UI completa (sección Liquidación en la ficha del evento, `/liquidaciones`, `/bizums`), todo validado. `amount_owed` es manual por diseño confirmado, no una deuda pendiente — no hay fórmula fija que automatizar (Montaje e Incentivo comercial varían por evento). |
 | CRM completo | Sin diseñar — `clients` existe en versión mínima (ADR-009) |
 | Billing, Riders, Calendar sync, Estadísticas, Mantenimiento, AI Copilot | Sin diseñar |
 

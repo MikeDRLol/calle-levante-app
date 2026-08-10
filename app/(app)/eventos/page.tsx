@@ -9,24 +9,31 @@ export default async function EventosPage() {
   const supabase = await createClient();
   const organizationId = await getActiveOrganizationId(supabase);
 
-  const [{ data: events }, { data: clients }, { data: resources }, { data: kits }] = organizationId
-    ? await Promise.all([
-        supabase
-          .from("events")
-          .select(
-            "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, total_amount, client_id, clients(name)",
-          )
-          .order("start_at", { ascending: true }),
-        supabase.from("clients").select("id, name").order("name", { ascending: true }),
-        supabase
-          .from("resources")
-          .select("id, name, resource_type")
-          .eq("status", "available")
-          .in("resource_type", ["material", "tool", "equipment", "vehicle"])
-          .order("name", { ascending: true }),
-        supabase.from("kits").select("id, name").order("name", { ascending: true }),
-      ])
-    : [{ data: null }, { data: null }, { data: null }, { data: null }];
+  const [{ data: events }, { data: clients }, { data: resources }, { data: people }, { data: kits }] =
+    organizationId
+      ? await Promise.all([
+          supabase
+            .from("events")
+            .select(
+              "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, total_amount, client_id, clients(name)",
+            )
+            .order("start_at", { ascending: true }),
+          supabase.from("clients").select("id, name").order("name", { ascending: true }),
+          supabase
+            .from("resources")
+            .select("id, name, resource_type")
+            .eq("status", "available")
+            .in("resource_type", ["material", "tool", "equipment", "vehicle"])
+            .order("name", { ascending: true }),
+          supabase
+            .from("resources")
+            .select("id, name, resource_type")
+            .eq("status", "available")
+            .eq("resource_type", "person")
+            .order("name", { ascending: true }),
+          supabase.from("kits").select("id, name").order("name", { ascending: true }),
+        ])
+      : [{ data: null }, { data: null }, { data: null }, { data: null }, { data: null }];
 
   return (
     <div className="flex flex-1 flex-col">
@@ -46,7 +53,12 @@ export default async function EventosPage() {
             </p>
           </div>
 
-          <NewEventForm clients={clients ?? []} resources={resources ?? []} kits={kits ?? []} />
+          <NewEventForm
+            clients={clients ?? []}
+            resources={resources ?? []}
+            people={people ?? []}
+            kits={kits ?? []}
+          />
 
           {!events || events.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 dark:border-zinc-800 dark:bg-zinc-900/30">

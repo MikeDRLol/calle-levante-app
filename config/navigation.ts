@@ -2,12 +2,12 @@ import type { LucideIcon } from "lucide-react";
 import {
   Calendar,
   CreditCard,
-  FileText,
   LayoutDashboard,
   Music2,
   Package,
   Receipt,
   Settings,
+  UserRound,
   Users,
   Wallet,
 } from "lucide-react";
@@ -37,6 +37,12 @@ export const mainNavItems: NavItem[] = [
     href: "/clientes",
     icon: Users,
     description: "Base de datos de clientes",
+  },
+  {
+    title: "Personal",
+    href: "/personal",
+    icon: UserRound,
+    description: "Técnicos, músicos y comerciales",
   },
   {
     title: "Calendario",
