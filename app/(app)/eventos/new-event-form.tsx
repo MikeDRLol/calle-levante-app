@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { createEvent, type CreateEventState } from "@/app/(app)/eventos/actions";
+import { MaterialPicker } from "@/app/(app)/eventos/material-picker";
 
 const initialState: CreateEventState = null;
 
@@ -45,6 +46,7 @@ export function NewEventForm({
   const [useExistingClient, setUseExistingClient] = useState(false);
   const [totalAmount, setTotalAmount] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
+  const [pickerKey, setPickerKey] = useState(0);
   const [state, formAction, pending] = useActionState(createEvent, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const wasPending = useRef(false);
@@ -55,6 +57,7 @@ export function NewEventForm({
       setUseExistingClient(false);
       setTotalAmount("");
       setDepositAmount("");
+      setPickerKey((k) => k + 1);
       setOpen(false);
     }
     wasPending.current = pending;
@@ -184,19 +187,7 @@ export function NewEventForm({
               No hay material disponible ahora mismo.
             </p>
           ) : (
-            <div className="grid max-h-40 grid-cols-2 gap-x-4 gap-y-1.5 overflow-y-auto sm:grid-cols-3">
-              {resources.map((r) => (
-                <label key={r.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                  <input
-                    type="checkbox"
-                    name="resource_ids"
-                    value={r.id}
-                    className="size-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-800"
-                  />
-                  {r.name}
-                </label>
-              ))}
-            </div>
+            <MaterialPicker key={pickerKey} resources={resources} name="resource_ids" />
           )}
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             Se comprobará que sigue libre para estas fechas justo al crear el evento.
