@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewEventForm } from "@/app/(app)/eventos/new-event-form";
 import { EventStatusBadge } from "@/components/events/status-badge";
@@ -58,14 +59,19 @@ export default async function EventosPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {events.map((event) => (
-                    <tr key={event.id} className="bg-white dark:bg-zinc-950">
+                    <tr
+                      key={event.id}
+                      className="bg-white transition-colors hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                    >
                       <td className="px-4 py-3">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                          {event.name}
-                        </p>
-                        <p className="text-xs capitalize text-zinc-500 dark:text-zinc-400">
-                          {event.event_type}
-                        </p>
+                        <Link href={`/eventos/${event.id}`} className="block">
+                          <p className="font-medium text-zinc-900 hover:underline dark:text-zinc-50">
+                            {event.name}
+                          </p>
+                          <p className="text-xs capitalize text-zinc-500 dark:text-zinc-400">
+                            {event.event_type}
+                          </p>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
                         {(event.clients as unknown as { name: string } | null)?.name ?? "—"}
