@@ -23,7 +23,8 @@ Este proyecto sustituye un Google Sheets por un ERP de eventos musicales, diseñ
 ## Estado actual
 
 - **Core diseñado, con esquema SQL completo y validado en ejecución real**: `docs/architecture/core-schema.sql` — organizations, resources (+ people/materials/vehicles/rooms_details), resource_bookings, locations, audit_log, domain_events, role_permissions, todo con RLS. Aplicado el 2026-08-10 como migración (`supabase/migrations/00001_core_schema.sql`) contra el proyecto Supabase remoto de Calle Levante, y validado con los 8 tests de `docs/architecture/core-schema-tests.sql` (todos pasan). El esquema no necesitó ningún cambio; se corrigieron 3 bugs en el propio script de tests — ver "Registro de validación" en ADR-001.
-- **Módulo Events: sin diseñar todavía.** Es el siguiente paso ahora que el Core está validado. Kit/Bundle (ADR-002) no se puede probar de extremo a extremo sin él.
+- **Módulo Events diseñado, con esquema SQL y validado en ejecución real** (2026-08-10): `docs/architecture/events-schema.sql` — events, clients (versión mínima, no el CRM completo), kits/kit_items/bundles/bundle_items (materializados de ADR-002), event_checklist_items, más las FK reales que cierran `resource_bookings.event_id` y `locations.event_id`. Ver ADR-009.
+- **Siguiente paso:** el flujo de resolución Kit → Bundle (aplicar un Kit a un evento, resolviendo cada línea a instancias reales vía `fn_check_resource_availability`) o el módulo Settlements (ADR-007, pendiente de documento) — ver `docs/architecture/README.md` para el estado completo de módulos.
 
 ## Validación del Core (ya hecha — referencia para futuros cambios de esquema)
 

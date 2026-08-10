@@ -20,6 +20,7 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | [ADR-006](./ADR-006-permisos-por-rol.md) | Permisos por rol y acción (autorización granular) | Aceptado | ADR-001 |
 | ADR-007 | Motor de liquidaciones: `settlement_rules` como datos (mencionado en ADR-006, aún sin documento propio) | Pendiente | ADR-001 |
 | ADR-008 | Facturación: integración con proveedor Verifactu homologado, no motor propio | Pendiente | ADR-005 |
+| [ADR-009](./ADR-009-events-module.md) | Módulo Events: entidad evento, clientes mínimos, checklist dinámico, cierre de FK diferidas | Aceptado | ADR-001, ADR-002, ADR-005 |
 
 ## Pendientes de validación (no dar el Core por cerrado sin esto)
 
@@ -28,6 +29,16 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 - [ ] Añadir test de `fn_check_resource_availability` (ADR-003) — sigue pendiente de un `event_id` real del módulo Events.
 - [ ] Confirmar con asesoría fiscal las fechas vigentes de obligatoriedad de Verifactu antes de fijar el calendario del módulo Billing — la normativa ha cambiado de fecha una vez ya.
 
+## Estado de los módulos
+
+| Módulo | Estado |
+|---|---|
+| Core | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) |
+| Events | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) — ver ADR-009 |
+| Kits/Bundles | Tablas materializadas dentro de la migración de Events (ADR-002 + ADR-009); sin flujo de resolución Kit→Bundle implementado todavía (la función que aplica un Kit a un evento) |
+| CRM completo | Sin diseñar — `clients` existe en versión mínima (ADR-009) |
+| Settlements, Billing, Riders, Calendar sync, Estadísticas, Mantenimiento, AI Copilot | Sin diseñar |
+
 ## Próximo módulo a diseñar
 
-**Events** — sigue siendo el siguiente paso natural: es el primer módulo construido sobre el Core y el único que permite completar el test pendiente de ADR-003 y probar Kit/Bundle de extremo a extremo.
+Con Events validado, el siguiente paso natural es el **flujo de resolución Kit → Bundle** (la función que, al aplicar un Kit a un evento, resuelve cada `kit_item` a instancias reales disponibles vía `fn_check_resource_availability` — ver ADR-002) o bien **Settlements** (ADR-007, pendiente de documento propio), según qué priorice el negocio.
