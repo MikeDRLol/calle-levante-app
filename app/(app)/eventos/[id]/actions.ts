@@ -86,6 +86,7 @@ export async function updateEvent(
   const venueAddress = String(formData.get("venue_address") ?? "").trim();
   const totalAmountRaw = String(formData.get("total_amount") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const clientId = String(formData.get("client_id") ?? "").trim();
 
   if (!name || !eventType || !startAt || !endAt) {
     return { error: "Nombre, tipo y fechas son obligatorios." };
@@ -111,6 +112,7 @@ export async function updateEvent(
       venue_name: venueName || null,
       venue_address: venueAddress || null,
       total_amount: totalAmount,
+      client_id: clientId || null,
       notes: notes || null,
     })
     .eq("id", eventId);

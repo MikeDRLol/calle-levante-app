@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { createEvent, type CreateEventState } from "@/app/(app)/eventos/actions";
 
@@ -15,26 +15,57 @@ const EVENT_TYPES = [
   { value: "otro", label: "Otro" },
 ];
 
-type Client = { id: string; name: string };
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Efectivo" },
+  { value: "transfer", label: "Transferencia" },
+  { value: "bizum", label: "Bizum" },
+  { value: "card", label: "Tarjeta" },
+  { value: "other", label: "Otro" },
+];
 
-export function NewEventForm({ clients }: { clients: Client[] }) {
+type Client = { id: string; name: string };
+type Resource = { id: string; name: string; resource_type: string };
+
+const inputClass =
+  "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-600";
+
+const currencyFormatter = new Intl.NumberFormat("es-ES", {
+  style: "currency",
+  currency: "EUR",
+});
+
+export function NewEventForm({
+  clients,
+  resources,
+}: {
+  clients: Client[];
+  resources: Resource[];
+}) {
   const [open, setOpen] = useState(false);
-  const [clientChoice, setClientChoice] = useState("");
-  const [state, formAction, pending] = useActionState(
-    createEvent,
-    initialState,
-  );
+  const [useExistingClient, setUseExistingClient] = useState(false);
+  const [totalAmount, setTotalAmount] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [state, formAction, pending] = useActionState(createEvent, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const wasPending = useRef(false);
 
   useEffect(() => {
-    if (wasPending.current && !pending && !state?.error) {
+    if (wasPending.current && !pending && !state?.error && !state?.warning) {
       formRef.current?.reset();
-      setClientChoice("");
+      setUseExistingClient(false);
+      setTotalAmount("");
+      setDepositAmount("");
       setOpen(false);
     }
     wasPending.current = pending;
   }, [pending, state]);
+
+  const pendingAmount = useMemo(() => {
+    const total = Number(totalAmount);
+    const deposit = Number(depositAmount);
+    if (!totalAmount || Number.isNaN(total)) return null;
+    return total - (depositAmount && !Number.isNaN(deposit) ? deposit : 0);
+  }, [totalAmount, depositAmount]);
 
   if (!open) {
     return (
@@ -65,108 +96,183 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
         </button>
       </div>
 
-      <form ref={formRef} action={formAction} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Nombre" htmlFor="name">
-          <input
-            id="name"
-            name="name"
-            required
-            placeholder="Boda García"
-            className={inputClass}
-          />
-        </Field>
+      <form ref={formRef} action={formAction} className="flex flex-col gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Nombre" htmlFor="name">
+            <input id="name" name="name" required placeholder="Boda García" className={inputClass} />
+          </Field>
 
-        <Field label="Tipo" htmlFor="event_type">
-          <select id="event_type" name="event_type" required defaultValue="" className={inputClass}>
-            <option value="" disabled>
-              Selecciona un tipo
-            </option>
-            {EVENT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+          <Field label="Tipo" htmlFor="event_type">
+            <select id="event_type" name="event_type" required defaultValue="" className={inputClass}>
+              <option value="" disabled>
+                Selecciona un tipo
               </option>
-            ))}
-          </select>
-        </Field>
+              {EVENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
-        <Field label="Cliente" htmlFor="client_id">
-          <select
-            id="client_id"
-            name="client_id"
-            value={clientChoice}
-            onChange={(e) => setClientChoice(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Sin cliente</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-            <option value="__new__">+ Cliente nuevo…</option>
-          </select>
-        </Field>
+          {useExistingClient ? (
+            <Field label="Cliente" htmlFor="client_id">
+              <div className="flex items-center gap-2">
+                <select id="client_id" name="client_id" defaultValue="" className={`flex-1 ${inputClass}`}>
+                  <option value="">Sin cliente</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setUseExistingClient(false)}
+                  className="whitespace-nowrap text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                >
+                  Cliente nuevo
+                </button>
+              </div>
+            </Field>
+          ) : (
+            <Field label="Cliente (nuevo)" htmlFor="new_client_name">
+              <div className="flex items-center gap-2">
+                <input
+                  id="new_client_name"
+                  name="new_client_name"
+                  placeholder="Familia García"
+                  className={`flex-1 ${inputClass}`}
+                />
+                {clients.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setUseExistingClient(true)}
+                    className="whitespace-nowrap text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                  >
+                    Ya existente
+                  </button>
+                ) : null}
+              </div>
+            </Field>
+          )}
 
-        {clientChoice === "__new__" ? (
-          <Field label="Nombre del cliente nuevo" htmlFor="new_client_name">
+          <Field label="Lugar" htmlFor="venue_name">
             <input
-              id="new_client_name"
-              name="new_client_name"
-              required
-              placeholder="Familia García"
+              id="venue_name"
+              name="venue_name"
+              placeholder="Finca El Rincón (opcional)"
               className={inputClass}
             />
           </Field>
-        ) : null}
 
-        <Field label="Lugar" htmlFor="venue_name">
-          <input
-            id="venue_name"
-            name="venue_name"
-            placeholder="Finca El Rincón (opcional)"
-            className={inputClass}
-          />
-        </Field>
+          <Field label="Inicio" htmlFor="start_at">
+            <input id="start_at" name="start_at" type="datetime-local" required className={inputClass} />
+          </Field>
 
-        <Field label="Inicio" htmlFor="start_at">
-          <input
-            id="start_at"
-            name="start_at"
-            type="datetime-local"
-            required
-            className={inputClass}
-          />
-        </Field>
+          <Field label="Fin" htmlFor="end_at">
+            <input id="end_at" name="end_at" type="datetime-local" required className={inputClass} />
+          </Field>
+        </div>
 
-        <Field label="Fin" htmlFor="end_at">
-          <input
-            id="end_at"
-            name="end_at"
-            type="datetime-local"
-            required
-            className={inputClass}
-          />
-        </Field>
+        <div className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Material y recursos
+          </p>
+          {resources.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No hay material disponible ahora mismo.
+            </p>
+          ) : (
+            <div className="grid max-h-40 grid-cols-2 gap-x-4 gap-y-1.5 overflow-y-auto sm:grid-cols-3">
+              {resources.map((r) => (
+                <label key={r.id} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <input
+                    type="checkbox"
+                    name="resource_ids"
+                    value={r.id}
+                    className="size-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-800"
+                  />
+                  {r.name}
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Se comprobará que sigue libre para estas fechas justo al crear el evento.
+          </p>
+        </div>
 
-        <Field label="Importe acordado (€)" htmlFor="total_amount">
-          <input
-            id="total_amount"
-            name="total_amount"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Opcional"
-            className={inputClass}
-          />
-        </Field>
+        <div className="rounded-lg border border-zinc-100 p-3 dark:border-zinc-800">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Cobro
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <Field label="Importe total (€)" htmlFor="total_amount">
+              <input
+                id="total_amount"
+                name="total_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+                placeholder="Opcional"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Señal cobrada (€)" htmlFor="deposit_amount">
+              <input
+                id="deposit_amount"
+                name="deposit_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                placeholder="Opcional"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Método" htmlFor="deposit_method">
+              <select id="deposit_method" name="deposit_method" defaultValue="" className={inputClass}>
+                <option value="">—</option>
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Fecha de la señal" htmlFor="deposit_paid_at">
+              <input id="deposit_paid_at" name="deposit_paid_at" type="date" className={inputClass} />
+            </Field>
+          </div>
+
+          {totalAmount ? (
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
+              Total <strong>{currencyFormatter.format(Number(totalAmount) || 0)}</strong>
+              {" · "}Cobrado{" "}
+              <strong>{currencyFormatter.format(Number(depositAmount) || 0)}</strong>
+              {" · "}Pendiente{" "}
+              <strong className={pendingAmount != null && pendingAmount > 0 ? "text-amber-600 dark:text-amber-400" : ""}>
+                {currencyFormatter.format(pendingAmount ?? 0)}
+              </strong>
+            </p>
+          ) : null}
+        </div>
 
         {state?.error ? (
-          <p className="sm:col-span-2 text-sm text-red-600 dark:text-red-400">
-            {state.error}
-          </p>
+          <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        ) : null}
+        {state?.warning ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400">{state.warning}</p>
         ) : null}
 
-        <div className="sm:col-span-2">
+        <div>
           <button
             type="submit"
             disabled={pending}
@@ -179,9 +285,6 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
     </div>
   );
 }
-
-const inputClass =
-  "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-600";
 
 function Field({
   label,

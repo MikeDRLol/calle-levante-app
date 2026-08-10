@@ -28,7 +28,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, total_amount, clients(name, phone, email)",
+      "id, name, event_type, status, start_at, end_at, venue_name, venue_address, notes, total_amount, client_id, clients(name, phone, email)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -37,7 +37,7 @@ export default async function EventDetailPage({
     notFound();
   }
 
-  const [{ data: checklistItems }, { data: bookings }, { data: payments }] = await Promise.all([
+  const [{ data: checklistItems }, { data: bookings }, { data: payments }, { data: clients }] = await Promise.all([
     supabase
       .from("event_checklist_items")
       .select("id, label, is_checked, source")
@@ -52,6 +52,7 @@ export default async function EventDetailPage({
       .select("id, amount, method, paid_at, notes")
       .eq("event_id", id)
       .order("paid_at", { ascending: false }),
+    supabase.from("clients").select("id, name").order("name", { ascending: true }),
   ]);
 
   const client = event.clients as unknown as {
@@ -134,7 +135,9 @@ export default async function EventDetailPage({
           venue_address: event.venue_address,
           total_amount: event.total_amount,
           notes: event.notes,
+          client_id: event.client_id,
         }}
+        clients={clients ?? []}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
