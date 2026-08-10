@@ -21,6 +21,7 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | ADR-007 | Motor de liquidaciones: `settlement_rules` como datos (mencionado en ADR-006, aún sin documento propio) | Pendiente | ADR-001 |
 | ADR-008 | Facturación: integración con proveedor Verifactu homologado, no motor propio | Pendiente | ADR-005 |
 | [ADR-009](./ADR-009-events-module.md) | Módulo Events: entidad evento, clientes mínimos, checklist dinámico, cierre de FK diferidas | Aceptado | ADR-001, ADR-002, ADR-005 |
+| [ADR-010](./ADR-010-kit-bundle-resolution.md) | Resolución Kit → Bundle: `fn_apply_kit_to_event` | Aceptado | ADR-001, ADR-002, ADR-003, ADR-009 |
 
 ## Pendientes de validación (no dar el Core por cerrado sin esto)
 
@@ -33,12 +34,12 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 
 | Módulo | Estado |
 |---|---|
-| Core | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) |
+| Core | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10). Incluye `fn_check_resource_availability` (ADR-003), añadida el 2026-08-10 tras detectar que faltaba en el esquema aplicado. |
 | Events | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) — ver ADR-009 |
-| Kits/Bundles | Tablas materializadas dentro de la migración de Events (ADR-002 + ADR-009); sin flujo de resolución Kit→Bundle implementado todavía (la función que aplica un Kit a un evento) |
+| Kits/Bundles | Tablas + flujo de resolución completo (`fn_apply_kit_to_event`, ADR-010), validado en ejecución real (2026-08-10) |
 | CRM completo | Sin diseñar — `clients` existe en versión mínima (ADR-009) |
 | Settlements, Billing, Riders, Calendar sync, Estadísticas, Mantenimiento, AI Copilot | Sin diseñar |
 
 ## Próximo módulo a diseñar
 
-Con Events validado, el siguiente paso natural es el **flujo de resolución Kit → Bundle** (la función que, al aplicar un Kit a un evento, resuelve cada `kit_item` a instancias reales disponibles vía `fn_check_resource_availability` — ver ADR-002) o bien **Settlements** (ADR-007, pendiente de documento propio), según qué priorice el negocio.
+Con Core, Events y Kit→Bundle validados, el siguiente paso natural es **Settlements** (ADR-007, pendiente de documento propio — el motor de liquidaciones y reparto de beneficios que hoy vive en Google Apps Script) o **Documents**, que ADR-005 sitúa en el Core pero que ADR-009 dejó registrado como deuda explícita sin tabla propia todavía.
