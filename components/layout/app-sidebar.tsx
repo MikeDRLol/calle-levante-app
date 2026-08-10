@@ -1,8 +1,9 @@
 "use client";
 
-import { Music2, X } from "lucide-react";
+import { LogOut, Music2, X } from "lucide-react";
 import { appConfig, mainNavItems } from "@/config/navigation";
 import { NavLink } from "@/components/layout/nav-link";
+import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils/cn";
 
 type AppSidebarProps = {
@@ -83,6 +84,25 @@ export function AppSidebar({
             ))}
           </ul>
         </nav>
+
+        <div className="border-t border-zinc-200 px-3 py-4 dark:border-zinc-800">
+          <form action={logout}>
+            <button
+              type="submit"
+              className={cn(
+                "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+                collapsed && "justify-center px-2",
+              )}
+              title={collapsed ? "Cerrar sesión" : undefined}
+            >
+              <LogOut
+                className="size-5 shrink-0 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"
+                aria-hidden
+              />
+              {!collapsed ? <span className="truncate">Cerrar sesión</span> : null}
+            </button>
+          </form>
+        </div>
       </aside>
     </>
   );
