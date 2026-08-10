@@ -1,3 +1,4 @@
+import { DollarSign } from "lucide-react";
 import { SectionPlaceholder } from "@/components/ui/section-placeholder";
 
 export default function DashboardPage() {
@@ -5,6 +6,7 @@ export default function DashboardPage() {
     <SectionPlaceholder
       title="Dashboard"
       description="Resumen general del negocio"
+      icon={DollarSign}
     />
   );
 }
