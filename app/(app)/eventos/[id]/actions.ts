@@ -277,3 +277,58 @@ export async function removeResourceBooking(bookingId: string, eventId: string) 
   await supabase.from("resource_bookings").delete().eq("id", bookingId);
   revalidatePath(`/eventos/${eventId}`);
 }
+
+export type ApplyKitState = {
+  error?: string;
+  warning?: string;
+} | null;
+
+export async function applyKitToEvent(
+  eventId: string,
+  _prevState: ApplyKitState,
+  formData: FormData,
+): Promise<ApplyKitState> {
+  const kitId = String(formData.get("kit_id") ?? "").trim();
+
+  if (!kitId) {
+    return { error: "Selecciona un pack." };
+  }
+
+  const supabase = await createClient();
+  const { data: rows, error } = await supabase.rpc("fn_apply_kit_to_event", {
+    p_kit_id: kitId,
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    return { error: `No se pudo aplicar el pack: ${error.message}` };
+  }
+
+  revalidatePath(`/eventos/${eventId}`);
+
+  if (!rows || rows.length === 0) {
+    return { warning: "Este pack no tiene material configurado — no se añadió nada." };
+  }
+
+  type ApplyKitRow = {
+    resource_category: string | null;
+    resource_type: string;
+    quantity_requested: number;
+    quantity_resolved: number;
+  };
+
+  const shortfalls = (rows as ApplyKitRow[]).filter(
+    (r) => r.quantity_resolved < r.quantity_requested,
+  );
+
+  if (shortfalls.length > 0) {
+    const detail = shortfalls
+      .map(
+        (r) => `${r.resource_category ?? r.resource_type} (${r.quantity_resolved}/${r.quantity_requested})`,
+      )
+      .join(", ");
+    return { warning: `Pack aplicado parcialmente — falta: ${detail}.` };
+  }
+
+  return null;
+}

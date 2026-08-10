@@ -41,6 +41,7 @@ export async function createEvent(
   const depositMethod = String(formData.get("deposit_method") ?? "").trim();
   const depositPaidAt = String(formData.get("deposit_paid_at") ?? "").trim();
   const resourceIds = formData.getAll("resource_ids").map(String).filter(Boolean);
+  const kitId = String(formData.get("kit_id") ?? "").trim();
 
   if (!name || !eventType || !startAt || !endAt) {
     return { error: "Nombre, tipo y fechas son obligatorios." };
@@ -144,6 +145,41 @@ export async function createEvent(
     }
   }
 
+  let kitWarning: string | null = null;
+
+  if (kitId) {
+    const { data: kitRows, error: kitError } = await supabase.rpc("fn_apply_kit_to_event", {
+      p_kit_id: kitId,
+      p_event_id: event.id,
+    });
+
+    type ApplyKitRow = {
+      resource_category: string | null;
+      resource_type: string;
+      quantity_requested: number;
+      quantity_resolved: number;
+    };
+
+    if (kitError) {
+      kitWarning = `no se pudo aplicar el pack (${kitError.message})`;
+    } else if (!kitRows || kitRows.length === 0) {
+      kitWarning = "el pack seleccionado no tiene material configurado";
+    } else {
+      const shortfalls = (kitRows as ApplyKitRow[]).filter(
+        (r) => r.quantity_resolved < r.quantity_requested,
+      );
+      if (shortfalls.length > 0) {
+        const detail = shortfalls
+          .map(
+            (r) =>
+              `${r.resource_category ?? r.resource_type} (${r.quantity_resolved}/${r.quantity_requested})`,
+          )
+          .join(", ");
+        kitWarning = `el pack se aplicó parcialmente — falta: ${detail}`;
+      }
+    }
+  }
+
   if (depositAmount && depositPaidAt) {
     await supabase.from("event_payments").insert({
       organization_id: organizationId,
@@ -157,9 +193,17 @@ export async function createEvent(
 
   revalidatePath("/eventos");
 
+  const warningParts: string[] = [];
   if (unavailableCount > 0) {
+    warningParts.push(`${unavailableCount} recurso(s) ya no estaban disponibles y no se reservaron.`);
+  }
+  if (kitWarning) {
+    warningParts.push(`Además, ${kitWarning}.`);
+  }
+
+  if (warningParts.length > 0) {
     return {
-      warning: `El evento se creó, pero ${unavailableCount} recurso(s) ya no estaban disponibles y no se reservaron. Revisa el evento para añadir alternativas.`,
+      warning: `El evento se creó, pero ${warningParts.join(" ")} Revisa el evento para añadir alternativas.`,
     };
   }
 

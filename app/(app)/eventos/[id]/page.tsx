@@ -7,7 +7,14 @@ import { EventChecklist } from "@/app/(app)/eventos/[id]/checklist";
 import { EditEventForm } from "@/app/(app)/eventos/[id]/edit-event-form";
 import { EventPayments } from "@/app/(app)/eventos/[id]/payments";
 import { AddResourceForm } from "@/app/(app)/eventos/[id]/add-resource-form";
+import { ApplyKitForm } from "@/app/(app)/eventos/[id]/apply-kit-form";
 import { RemoveBookingButton } from "@/app/(app)/eventos/[id]/remove-booking-button";
+import {
+  SettlementSection,
+  type Participant,
+  type Expense,
+  type Transfer,
+} from "@/app/(app)/eventos/[id]/settlement-section";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrganizationId } from "@/lib/supabase/organization";
 import { eventDateFormatter } from "@/lib/utils/format";
@@ -37,7 +44,7 @@ export default async function EventDetailPage({
     notFound();
   }
 
-  const [{ data: checklistItems }, { data: bookings }, { data: payments }, { data: clients }] = await Promise.all([
+  const [{ data: checklistItems }, { data: bookings }, { data: payments }, { data: clients }, { data: kits }] = await Promise.all([
     supabase
       .from("event_checklist_items")
       .select("id, label, is_checked, source")
@@ -53,6 +60,7 @@ export default async function EventDetailPage({
       .eq("event_id", id)
       .order("paid_at", { ascending: false }),
     supabase.from("clients").select("id, name").order("name", { ascending: true }),
+    supabase.from("kits").select("id, name").order("name", { ascending: true }),
   ]);
 
   const client = event.clients as unknown as {
@@ -97,6 +105,31 @@ export default async function EventDetailPage({
     );
     availableCandidates = unbookedCandidates.filter((r) => availableIds.has(r.id));
   }
+
+  const [
+    { data: people },
+    { data: settlementParticipants },
+    { data: expenses },
+    { data: transfers },
+  ] = await Promise.all([
+    supabase.from("resources").select("id, name").eq("resource_type", "person").order("name", { ascending: true }),
+    supabase
+      .from("event_settlement_participants")
+      .select("id, resource_id, amount_owed, resources(name)")
+      .eq("event_id", id),
+    supabase
+      .from("event_expenses")
+      .select("id, description, amount, expense_date, paid_by_resource_id, resources(name)")
+      .eq("event_id", id)
+      .order("expense_date", { ascending: false }),
+    supabase
+      .from("settlement_transfers")
+      .select(
+        "id, amount, status, from_resource_id, to_resource_id, from:resources!settlement_transfers_from_resource_id_fkey(name), to:resources!settlement_transfers_to_resource_id_fkey(name)",
+      )
+      .eq("event_id", id)
+      .order("created_at", { ascending: true }),
+  ]);
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -202,6 +235,8 @@ export default async function EventDetailPage({
           </ul>
         )}
 
+        <ApplyKitForm eventId={event.id} kits={kits ?? []} />
+
         <AddResourceForm
           eventId={event.id}
           organizationId={organizationId}
@@ -223,6 +258,15 @@ export default async function EventDetailPage({
           payments={payments ?? []}
         />
       </div>
+
+      <SettlementSection
+        eventId={event.id}
+        organizationId={organizationId}
+        people={people ?? []}
+        participants={(settlementParticipants ?? []) as unknown as Participant[]}
+        expenses={(expenses ?? []) as unknown as Expense[]}
+        transfers={(transfers ?? []) as unknown as Transfer[]}
+      />
     </div>
   );
 }

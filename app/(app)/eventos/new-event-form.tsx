@@ -26,6 +26,7 @@ const PAYMENT_METHODS = [
 
 type Client = { id: string; name: string };
 type Resource = { id: string; name: string; resource_type: string };
+type Kit = { id: string; name: string };
 
 const inputClass =
   "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-600";
@@ -38,9 +39,11 @@ const currencyFormatter = new Intl.NumberFormat("es-ES", {
 export function NewEventForm({
   clients,
   resources,
+  kits,
 }: {
   clients: Client[];
   resources: Resource[];
+  kits: Kit[];
 }) {
   const [open, setOpen] = useState(false);
   const [useExistingClient, setUseExistingClient] = useState(false);
@@ -182,6 +185,23 @@ export function NewEventForm({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Material y recursos
           </p>
+
+          {kits.length > 0 ? (
+            <div className="mb-3 flex flex-col gap-1.5">
+              <label htmlFor="kit_id" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Pack (opcional)
+              </label>
+              <select id="kit_id" name="kit_id" defaultValue="" className={inputClass}>
+                <option value="">Sin pack</option>
+                {kits.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
           {resources.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               No hay material disponible ahora mismo.

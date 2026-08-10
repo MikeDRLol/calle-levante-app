@@ -18,7 +18,7 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | [ADR-004](./ADR-004-digital-twin-locations.md) | Digital Twin: locations único (almacén + evento), soft-delete | Aceptado | ADR-001 |
 | [ADR-005](./ADR-005-core-vs-modulos.md) | Frontera Core vs Módulos | Aceptado | ADR-001, ADR-002, ADR-003, ADR-004 |
 | [ADR-006](./ADR-006-permisos-por-rol.md) | Permisos por rol y acción (autorización granular) | Aceptado | ADR-001 |
-| ADR-007 | Motor de liquidaciones: `settlement_rules` como datos (mencionado en ADR-006, aún sin documento propio) | Pendiente | ADR-001 |
+| [ADR-007](./ADR-007-settlements.md) | Liquidaciones: gastos, saldos por participante, algoritmo de mínimas transferencias | Aceptado | ADR-001, ADR-006, ADR-009 |
 | ADR-008 | Facturación: integración con proveedor Verifactu homologado, no motor propio | Pendiente | ADR-005 |
 | [ADR-009](./ADR-009-events-module.md) | Módulo Events: entidad evento, clientes mínimos, checklist dinámico, cierre de FK diferidas | Aceptado | ADR-001, ADR-002, ADR-005 |
 | [ADR-010](./ADR-010-kit-bundle-resolution.md) | Resolución Kit → Bundle: `fn_apply_kit_to_event` | Aceptado | ADR-001, ADR-002, ADR-003, ADR-009 |
@@ -38,9 +38,10 @@ Esta carpeta contiene las decisiones de arquitectura (ADRs) y el esquema de base
 | Core | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10). Incluye `fn_check_resource_availability` (ADR-003), añadida el 2026-08-10 tras detectar que faltaba en el esquema aplicado. |
 | Events | Diseñado, con esquema SQL y validado en ejecución real (2026-08-10) — ver ADR-009 |
 | Kits/Bundles | Tablas + flujo de resolución completo (`fn_apply_kit_to_event`, ADR-010), validado en ejecución real (2026-08-10) |
+| Settlements | Esquema + algoritmo de mínimas transferencias (ADR-007), validado en ejecución real (2026-08-10). **Sin UI todavía.** La fórmula real de reparto (cuánto le corresponde a cada persona) sigue siendo entrada manual — deuda conocida, ver ADR-007. |
 | CRM completo | Sin diseñar — `clients` existe en versión mínima (ADR-009) |
-| Settlements, Billing, Riders, Calendar sync, Estadísticas, Mantenimiento, AI Copilot | Sin diseñar |
+| Billing, Riders, Calendar sync, Estadísticas, Mantenimiento, AI Copilot | Sin diseñar |
 
-## Próximo módulo a diseñar
+## Próximo paso
 
-Con Core, Events y Kit→Bundle validados, el siguiente paso natural es **Settlements** (ADR-007, pendiente de documento propio — el motor de liquidaciones y reparto de beneficios que hoy vive en Google Apps Script) o **Documents**, que ADR-005 sitúa en el Core pero que ADR-009 dejó registrado como deuda explícita sin tabla propia todavía.
+Con el esquema de Settlements validado, falta la UI (`/liquidaciones` y `/bizums`, hoy placeholders) para: añadir gastos y participantes a un evento, disparar el recálculo, y marcar transferencias como pagadas. También sigue pendiente **Documents**, que ADR-005 sitúa en el Core pero que ADR-009 dejó registrado como deuda explícita sin tabla propia todavía.

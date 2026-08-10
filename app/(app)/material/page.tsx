@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { NewMaterialForm } from "@/app/(app)/material/new-material-form";
 import { MaterialsTable, type MaterialRow } from "@/app/(app)/material/materials-table";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveOrganizationId } from "@/lib/supabase/organization";
-import { Package } from "lucide-react";
+import { Package, Package2 } from "lucide-react";
 
 export default async function MaterialPage() {
   const supabase = await createClient();
@@ -19,7 +20,16 @@ export default async function MaterialPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title="Material" description="Inventario y equipamiento" />
+      <div className="flex items-start justify-between gap-3">
+        <PageHeader title="Material" description="Inventario y equipamiento" />
+        <Link
+          href="/material/kits"
+          className="mt-1 flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          <Package2 className="size-4" aria-hidden />
+          Packs de material
+        </Link>
+      </div>
 
       {!organizationId ? (
         <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 dark:border-zinc-800 dark:bg-zinc-900/30">

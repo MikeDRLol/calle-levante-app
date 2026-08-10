@@ -1,0 +1,60 @@
+"use client";
+
+import { useActionState } from "react";
+import Link from "next/link";
+import { Package2 } from "lucide-react";
+import { applyKitToEvent, type ApplyKitState } from "@/app/(app)/eventos/[id]/actions";
+
+type Kit = { id: string; name: string };
+
+const inputClass =
+  "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-600";
+
+export function ApplyKitForm({ eventId, kits }: { eventId: string; kits: Kit[] }) {
+  const action = applyKitToEvent.bind(null, eventId);
+  const initialState: ApplyKitState = null;
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  if (kits.length === 0) {
+    return (
+      <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+        No tienes packs configurados —{" "}
+        <Link href="/material/kits" className="underline">
+          créalos aquí
+        </Link>
+        .
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <form action={formAction} className="flex items-center gap-2">
+        <select name="kit_id" required defaultValue="" className={`flex-1 ${inputClass}`}>
+          <option value="" disabled>
+            Aplicar un pack…
+          </option>
+          {kits.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          disabled={pending}
+          aria-label="Aplicar pack"
+          className="flex items-center justify-center rounded-lg bg-zinc-900 p-2 text-white transition-colors hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          <Package2 className="size-4" aria-hidden />
+        </button>
+      </form>
+      {state?.error ? (
+        <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{state.error}</p>
+      ) : null}
+      {state?.warning ? (
+        <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">{state.warning}</p>
+      ) : null}
+    </div>
+  );
+}
